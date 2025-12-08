@@ -42,7 +42,7 @@ Git Sense acts as an intelligent layer on top of your Git repositories. It inges
 4. Configure Environment:
    Create a `.env` file in `backend/` and add your Groq API keys:
    ```env
-   GROQ_API_KEYS=gsk_...,gsk_...
+   GROQ_API_KEYS=<your_groq_api_key>
    ```
 
 ### Frontend Setup
