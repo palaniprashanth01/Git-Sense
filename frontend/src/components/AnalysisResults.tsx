@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Lightbulb, FileText, Bug, GitBranch, FileCode, GitCommit, Loader2 } from 'lucide-react';
+import { Lightbulb, Bug, FileCode, GitCommit, Loader2, UploadCloud } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import clsx from 'clsx';
 
@@ -41,6 +41,7 @@ interface AnalysisData {
 interface AnalysisResultsProps {
     data: AnalysisData;
     activeTab: string;
+    repoUrl: string;
 }
 
 // Helper for loading state
@@ -51,7 +52,38 @@ const LoadingSection = () => (
     </div>
 );
 
-export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ data, activeTab }) => {
+export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ data, activeTab, repoUrl }) => {
+    const [pushing, setPushing] = React.useState(false);
+    const [pushStatus, setPushStatus] = React.useState<{ success: boolean; message: string } | null>(null);
+
+    const handlePush = async () => {
+        if (!data.readme || !repoUrl) return;
+        setPushing(true);
+        setPushStatus(null);
+        try {
+            const response = await fetch('http://localhost:8000/push', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    repo_url: repoUrl,
+                    file_path: 'README.md',
+                    content: data.readme,
+                    commit_message: 'Update README.md via Git Sense',
+                    branch: 'main'
+                }),
+            });
+            const result = await response.json();
+            if (response.ok) {
+                setPushStatus({ success: true, message: 'Successfully pushed to Git!' });
+            } else {
+                setPushStatus({ success: false, message: result.detail || 'Failed to push.' });
+            }
+        } catch (e) {
+            setPushStatus({ success: false, message: 'Error connecting to server.' });
+        } finally {
+            setPushing(false);
+        }
+    };
 
     const renderContent = () => {
         switch (activeTab) {
@@ -243,9 +275,36 @@ export const AnalysisResults: React.FC<AnalysisResultsProps> = ({ data, activeTa
 
             case 'readme':
                 return (
-                    <div className="bg-surface p-8 rounded-xl border border-white/5 prose prose-invert max-w-none prose-headings:text-primary prose-a:text-accent">
+                    <div className="bg-surface p-8 rounded-xl border border-white/5 relative">
                         {data.readme ? (
-                            <ReactMarkdown>{data.readme}</ReactMarkdown>
+                            <>
+                                <div className="flex justify-between items-start mb-6 pb-6 border-b border-white/5">
+                                    <h3 className="text-xl font-bold text-white">Generated README</h3>
+                                    <div className="flex flex-col items-end gap-2">
+                                        <button
+                                            onClick={handlePush}
+                                            disabled={pushing}
+                                            className={clsx(
+                                                "flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all shadow-lg shadow-primary/20",
+                                                pushing
+                                                    ? "bg-primary/20 text-primary cursor-wait"
+                                                    : "bg-gradient-to-r from-primary to-indigo-600 text-white hover:opacity-90 active:scale-95"
+                                            )}
+                                        >
+                                            {pushing ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadCloud className="w-4 h-4" />}
+                                            {pushing ? 'Pushing...' : 'Push to Git'}
+                                        </button>
+                                        {pushStatus && (
+                                            <div className={clsx("text-sm font-medium animate-in fade-in slide-in-from-top-1", pushStatus.success ? "text-green-400" : "text-red-400")}>
+                                                {pushStatus.message}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="prose prose-invert max-w-none prose-headings:text-primary prose-a:text-accent">
+                                    <ReactMarkdown>{data.readme}</ReactMarkdown>
+                                </div>
+                            </>
                         ) : <LoadingSection />}
                     </div>
                 );

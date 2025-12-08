@@ -21,11 +21,13 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [currentRepoUrl, setCurrentRepoUrl] = useState<string>('');
 
   const handleAnalyze = async (url: string) => {
     setLoading(true);
     setError(null);
     setAnalysisData(null);
+    setCurrentRepoUrl(url);
     try {
       const response = await fetch('http://localhost:8000/analyze', {
         method: 'POST',
@@ -133,21 +135,27 @@ function App() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 scroll-smooth">
-          {!analysisData && !loading && (
-            <div className="max-w-2xl mx-auto mt-20 text-center">
-              <div className="mb-8 inline-flex p-4 rounded-full bg-primary/10 mb-6">
-                <Sparkles className="w-12 h-12 text-primary" />
-              </div>
-              <h2 className="text-3xl font-bold mb-4">Analyze any GitHub Repository</h2>
-              <p className="text-gray-400 mb-8 text-lg">
-                Get instant insights, structure analysis, bug detection, and more with our advanced AI engine.
-              </p>
-              <RepoInput onAnalyze={handleAnalyze} loading={loading} />
-            </div>
-          )}
+          {/* Repo Input Area - Persistent */}
+          <div className={clsx(
+            "transition-all duration-500 ease-in-out",
+            analysisData ? "mb-6" : "max-w-2xl mx-auto mt-20 text-center"
+          )}>
+            {!analysisData && !loading && (
+              <>
+                <div className="mb-8 inline-flex p-4 rounded-full bg-primary/10 mb-6">
+                  <Sparkles className="w-12 h-12 text-primary" />
+                </div>
+                <h2 className="text-3xl font-bold mb-4">Analyze any GitHub Repository</h2>
+                <p className="text-gray-400 mb-8 text-lg">
+                  Get instant insights, structure analysis, bug detection, and more with our advanced AI engine.
+                </p>
+              </>
+            )}
+            <RepoInput onAnalyze={handleAnalyze} loading={loading} />
+          </div>
 
           {loading && (
-            <div className="flex flex-col items-center justify-center h-full space-y-6">
+            <div className="flex flex-col items-center justify-center py-12 space-y-6">
               <div className="relative w-24 h-24">
                 <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
                 <div className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"></div>
@@ -177,16 +185,8 @@ function App() {
                   </h2>
                   <p className="text-gray-400 text-sm">Analysis Results for Repository</p>
                 </div>
-                {!loading && (
-                  <button
-                    onClick={() => { setAnalysisData(null); setActiveTab('overview'); }}
-                    className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
-                  >
-                    Analyze Another
-                  </button>
-                )}
               </div>
-              <AnalysisResults data={analysisData} activeTab={activeTab} />
+              <AnalysisResults data={analysisData} activeTab={activeTab} repoUrl={currentRepoUrl} />
             </div>
           )}
         </div>

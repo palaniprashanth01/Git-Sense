@@ -12,3 +12,10 @@ class AnalysisResponse(BaseModel):
 class QueryRequest(BaseModel):
     repo_id: str
     query: str
+
+class PushRequest(BaseModel):
+    repo_url: str
+    file_path: str
+    content: str
+    commit_message: str
+    branch: Optional[str] = "main"

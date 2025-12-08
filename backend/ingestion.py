@@ -15,6 +15,15 @@ embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 DB_DIR = "./chroma_db"
 
+def get_repo_id(repo_url: str) -> str:
+    """Extracts and sanitizes repo_id from URL."""
+    # Extract basename
+    repo_id = repo_url.split("/")[-1].replace(".git", "")
+    # Remove trailing non-alphanumeric characters (to satisfy ChromaDB constraints)
+    while repo_id and not repo_id[-1].isalnum():
+        repo_id = repo_id[:-1]
+    return repo_id
+
 def clone_repository(repo_url: str, branch: str = None) -> str:
     """Clones the repository to a temporary directory."""
     temp_dir = tempfile.mkdtemp()
@@ -93,7 +102,7 @@ def generate_file_tree(startpath: str) -> str:
 
 def process_repository(repo_url: str, branch: str = None) -> tuple[str, str]:
     """Full pipeline: Clone -> Load -> Split -> Index. Returns (repo_id, file_tree)."""
-    repo_id = repo_url.split("/")[-1].replace(".git", "")
+    repo_id = get_repo_id(repo_url)
     
     temp_dir = clone_repository(repo_url, branch)
     try:

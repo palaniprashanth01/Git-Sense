@@ -125,9 +125,10 @@ def analyze_suggestions(repo_id: str):
     {context}
     
     **CRITICAL INSTRUCTIONS:**
-    - Output MUST be a valid JSON list of objects.
+    - Output ONLY a valid JSON list of objects.
+    - NO introductory text. NO markdown formatting.
+    - Start the response with '[' and end with ']'.
     - Keys: "file", "description", "suggestion".
-    - Do NOT include markdown formatting.
     - Limit to the top 5 most impactful suggestions.
     - Ensure the JSON is well-formed.
     """
@@ -221,9 +222,10 @@ def analyze_file_summaries(repo_id: str):
     {context}
     
     **CRITICAL INSTRUCTIONS:**
-    - Output MUST be a valid JSON list of objects.
+    - Output ONLY a valid JSON list of objects.
+    - NO introductory text. NO markdown formatting.
+    - Start the response with '[' and end with ']'.
     - Keys: "file", "summary".
-    - Do NOT include markdown formatting.
     - Limit to the top 15 files.
     - Ensure the JSON is well-formed.
     """

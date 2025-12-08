@@ -1,8 +1,9 @@
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from models import AnalyzeRequest, AnalysisResponse
+from models import AnalyzeRequest, AnalysisResponse, PushRequest
 import ingestion
 import analysis
+import git_utils
 import json
 import re
 import ast
@@ -25,21 +26,27 @@ results_store = {}
 def clean_json_string(json_str: str) -> str:
     """Removes markdown code blocks and extracts JSON list."""
     print(f"DEBUG: Raw JSON string length: {len(json_str)}")
-    # Remove markdown code blocks
-    pattern = r"```(?:json)?\s*(.*?)\s*```"
-    match = re.search(pattern, json_str, re.DOTALL)
-    if match:
-        json_str = match.group(1)
     
-    # Attempt to find the first [ and last ]
+    # Try to find JSON block in markdown
+    pattern = r"```(?:json)?\s*(.*?)\s*```"
+    matches = re.findall(pattern, json_str, re.DOTALL)
+    if matches:
+        # Take the longest match which is likely the main content
+        json_str = max(matches, key=len)
+    
+    # Locate the outer-most list brackets []
     start = json_str.find("[")
     end = json_str.rfind("]")
     
     if start != -1 and end != -1:
         return json_str[start : end + 1]
     
-    # Fallback: if no list found, try to find { } for single object or return original
-    # But we expect lists for most things.
+    # Fallback: if no list found, try to find { } for single object
+    start_obj = json_str.find("{")
+    end_obj = json_str.rfind("}")
+    if start_obj != -1 and end_obj != -1:
+        return json_str[start_obj : end_obj + 1]
+
     return json_str.strip()
 
 def parse_json_safely(json_str: str):
@@ -111,6 +118,7 @@ async def process_analysis(repo_url: str, repo_id: str):
                 result_raw = await asyncio.to_thread(task_func, *args)
                 # Parse if it's one of the JSON fields
                 if key in ["bugs", "suggestions", "file_summaries"]:
+                    print(f"DEBUG: {key} raw output: {result_raw[:200]}...") # Log start of output
                     result = parse_json_safely(result_raw)
                 else:
                     result = result_raw
@@ -149,7 +157,7 @@ async def process_analysis(repo_url: str, repo_id: str):
 
 @app.post("/analyze", response_model=AnalysisResponse)
 async def analyze_repo(request: AnalyzeRequest, background_tasks: BackgroundTasks):
-    repo_id = request.repo_url.split("/")[-1].replace(".git", "")
+    repo_id = ingestion.get_repo_id(request.repo_url)
     results_store[repo_id] = {"status": "processing"}
     background_tasks.add_task(process_analysis, request.repo_url, repo_id)
     return {"message": "Analysis started", "repo_id": repo_id}
@@ -164,4 +172,22 @@ async def get_results(repo_id: str):
 @app.get("/status")
 def health_check():
     return {"status": "ok"}
+
+@app.post("/push")
+async def push_changes(request: PushRequest):
+    print(f"Received push request for {request.file_path} in {request.repo_url}")
+    success, message = await asyncio.to_thread(
+        git_utils.push_file,
+        request.repo_url,
+        request.file_path,
+        request.content,
+        request.commit_message,
+        request.branch
+    )
+    
+    if not success:
+        raise HTTPException(status_code=500, detail=message)
+    
+    return {"status": "success", "message": message}
+
 
